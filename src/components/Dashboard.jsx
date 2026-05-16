@@ -12,8 +12,21 @@ const Dashboard = ({ user, onLogout }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedDetail, setSelectedDetail] = useState(null);
+  const [expandedAccessLevels, setExpandedAccessLevels] = useState(new Set());
 
   const isNational = user?.scope === "National";
+
+  const toggleAccessLevel = (accessId) => {
+    setExpandedAccessLevels((prev) => {
+      const next = new Set(prev);
+      if (next.has(accessId)) {
+        next.delete(accessId);
+      } else {
+        next.add(accessId);
+      }
+      return next;
+    });
+  };
 
   const formatNumber = (value) => {
     const number = Number(value || 0);
@@ -508,7 +521,9 @@ const Dashboard = ({ user, onLogout }) => {
 
       event.access_levels.forEach((accessLevel, accessIndex) => {
         const accessKey = accessLevel.access_level_id || accessIndex;
+        const accessId = `${eventKey}-${accessKey}`;
         const duties = accessLevel.duties || [];
+        const isExpanded = expandedAccessLevels.has(accessId);
 
         const dutyApproved = duties.reduce(
           (sum, duty) => sum + Number(duty.ok_count || 0),
@@ -557,9 +572,22 @@ const Dashboard = ({ user, onLogout }) => {
           >
             <td>{event.event_name || "Unknown"}</td>
             <td>
-              {accessLevel.name ||
-                accessLevel.access_level_name ||
-                "Unknown Access Level"}
+              <div className="dashboard-access-cell">
+                <span>
+                  {accessLevel.name ||
+                    accessLevel.access_level_name ||
+                    "Unknown Access Level"}
+                </span>
+                <button
+                  type="button"
+                  className="dashboard-detail-btn light"
+                  onClick={() => toggleAccessLevel(accessId)}
+                >
+                  {isExpanded
+                    ? "Hide duties"
+                    : `Show ${duties.length} duty${duties.length === 1 ? "" : "ies"}`}
+                </button>
+              </div>
             </td>
             <td>{formatNumber(accessLevel.required)}</td>
             <td>{formatNumber(accessLevel.remaining)}</td>
@@ -579,7 +607,8 @@ const Dashboard = ({ user, onLogout }) => {
           </tr>
         );
 
-        duties.forEach((duty, dutyIndex) => {
+        if (isExpanded) {
+          duties.forEach((duty, dutyIndex) => {
           const dutyKey = duty.duty_id || dutyIndex;
 
           const dutyDetailPayload = {
@@ -623,7 +652,8 @@ const Dashboard = ({ user, onLogout }) => {
               </td>
             </tr>
           );
-        });
+          });
+        }
       });
 
       return rows;
